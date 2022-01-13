@@ -63,10 +63,15 @@ class UsersController extends Controller
                     'payload' => $request->except('password'),
                 ]
             );
-            return new JsonResponse(null, Response::HTTP_INTERNAL_SERVER_ERROR);
+            return response()->json([
+                'message' => 'Failed'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
         //Add event here
-        return new JsonResponse(null, Response::HTTP_NO_CONTENT);
+        return response()->json([
+            'message' => 'Success',
+            'data'=> User::latest()->first(),
+        ], Response::HTTP_CREATED);
         
     }
 
@@ -77,13 +82,15 @@ class UsersController extends Controller
         if (!Auth::attempt($request->only(['email', 'password']))) {
             return new JsonResponse([], Response::HTTP_BAD_REQUEST);
         }
-
+        
+        $userInfo = User::where('email',$request->only(['email']))->first();
         $token = $request->user()->createToken('authorize');
 
         return new JsonResponse(
             [
                 'data' => [
                     'token' => $token->plainTextToken,
+                    'userInfo' => $userInfo
                 ],
             ]
         );
