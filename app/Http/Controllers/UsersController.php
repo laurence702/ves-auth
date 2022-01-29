@@ -11,6 +11,7 @@ use App\Http\Requests\LoginRequest;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Database\QueryException;
 use App\Http\Requests\createUserRequest;
 
 class UsersController extends Controller
@@ -47,31 +48,42 @@ class UsersController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
-        //$request->validated();
-        $user = new User(
-            [
-                'first_name' => $request->get('first_name'),
-                'last_name' => $request->get('last_name'),
-                'email' => $request->get('email'),
-                'password' => Hash::make($request->get('password')),
-            ]
-        );
-        if (!$user->save()) {
-            Log::error(
-                'failed to create account',
+        try {
+            $user = new User(
                 [
-                    'payload' => $request->except('password'),
+                    'first_name' => $request->get('first_name'),
+                    'last_name' => $request->get('last_name'),
+                    'email' => $request->get('email'),
+                    'password' => Hash::make($request->get('password')),
                 ]
             );
+            if (!$user->save()) {
+                Log::error(
+                    'failed to create account',
+                    [
+                        'payload' => $request->except('password'),
+                    ]
+                );
+                throw new Exception();
+            }
+            //Add event here
             return response()->json([
-                'message' => 'Failed'
+                'message' => 'Success',
+                'data'=> User::latest()->first(),
+            ], Response::HTTP_CREATED);
+        } catch (Exception $e) {
+            if($e instanceof QueryException) {
+                return response()->json([
+                    'message' => 'email already taken',
+                    'meta'=> $e->getMessage(),
+                ], Response::HTTP_INTERNAL_SERVER_ERROR);
+            }
+            return response()->json([
+                'message' => 'Failed to register',
+                'meta'=> $e->getMessage(),
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
-        //Add event here
-        return response()->json([
-            'message' => 'Success',
-            'data'=> User::latest()->first(),
-        ], Response::HTTP_CREATED);
+        
         
     }
 
